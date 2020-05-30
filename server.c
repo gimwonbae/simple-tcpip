@@ -25,8 +25,6 @@ int main(int argc, char *argv[])
   char buffer[1024];
   char response[1024];
 
-  FILE *fp;
-  
   /*sockaddr_in: Structure Containing an Internet Address*/
   struct sockaddr_in serv_addr, cli_addr;
   
@@ -77,12 +75,17 @@ int main(int argc, char *argv[])
     char *httpV = strtok(NULL," ");
     char *statusCode;
     char *reason;
+    int fileSize;
+    char *type;
 
     printf("method = %s\n", method);
     printf("fileName = %s\n", fileName);
     printf("httpV = %s\n", httpV);
 
-    if((fp = fopen(fileName, "rb")) == NULL){
+    FILE *fp = fopen(fileName, "rb");
+
+    if(fp == NULL){
+      fclose(fp);
       statusCode = "404";
       reason = "Not Found";
       sprintf(response, "%s %s %s\r\n" , httpV, statusCode, reason);
@@ -91,12 +94,60 @@ int main(int argc, char *argv[])
       if (n < 0) error("ERROR writing to socket");
       continue;
     }
-    // else{
+    else{
+      printf("/n/n111111");      
+      if(strstr(fileName,"html") != NULL){
+        type = "text/html";
+      }
+      else if(strstr(fileName,"gif") != NULL){
+        type = "image/gif";
+      }
+      else if(strstr(fileName,"jpeg") != NULL){
+        type = "image/jpeg";
+      }
+      else if(strstr(fileName,"mp3") != NULL){
+        type = "audio/mp3";
+      }
+      else if(strstr(fileName,"pdf") != NULL){
+        type = "application/pdf";
+      }
+      else {
+        fclose(fp);
+        statusCode = "406";
+        reason = "Not Acceptable";
+        sprintf(response, "%s %s %s\r\n" , httpV, statusCode, reason);
+        printf("response : %s\n", response);
+        n = write(newsockfd, response, strlen(response));
+        if (n < 0) error("ERROR writing to socket");
+        continue;
+      }
+      statusCode = "200";
+      reason = "OK";
 
-    // }
+      fseek(fp, 0, SEEK_END);   
+      fileSize = ftell(fp);  
+      fseek(fp, 0, SEEK_SET);
+      
+      char *file = (char *)malloc(sizeof(char) * fileSize); // content에 메모리 할당
+      bzero(file, fileSize);
+    /*
+    fread()함수는 입력 file에서 sizeof(char) 길이의 file_size항목까지 읽고,
+    지정된 content(buffer)에 저장합니다.
+    */
+      fread(file, sizeof(char), fileSize, fp);
+      fclose(fp);
 
-    n = write(newsockfd,"I got your message",18); //NOTE: write function returns the number of bytes actually sent out �> this might be less than the number you told it to send
-    if (n < 0) error("ERROR writing to socket");
+      sprintf(response, "%s %s %s\r\nContent-Length: %d\r\nContent-Type: %s\r\n\r\n" , httpV, statusCode, reason,
+      fileSize, type);
+      
+      printf("response : %s", response);
+      printf("file : %s", file);
+      n = write(newsockfd, response, strlen(response));
+      if (n < 0) error("ERROR writing to socket");
+      n = write(newsockfd, file, fileSize);
+      if (n < 0) error("ERROR writing to socket");
+      free(file); // malloc으로 할당된 기억장치를 해제시킴.
+    }
   }
 
   close(sockfd);
