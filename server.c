@@ -65,34 +65,30 @@ int main(int argc, char *argv[])
       error("ERROR on accept");
     
     bzero(buffer,1024);
-    n = read(newsockfd,buffer,1023); //Read is a block function. It will read at most 255 bytes
+    n = read(newsockfd,buffer,1023); //Read is a block function. It will read at most 1023 bytes
     if (n < 0) error("ERROR reading from socket");
       printf("Request Message:\n%s\n",buffer);
     
-    char *method = strtok(buffer,"\r\n");
-    strtok(method, " ");
-    char *fileName = strtok(NULL," /");
-    char *httpV = strtok(NULL," ");
-    char *statusCode;
+    char *method = strtok(buffer,"\r\n"); 
+    strtok(method, " ");  //request message에서 method token을 parsing
+    char *fileName = strtok(NULL," /"); //request message에서 file name을 parsing
+    char *httpV = strtok(NULL," "); //request message에서 http version을 parsing
+    char *statusCode; 
     char *reason;
     int fileSize;
     char *type;
 
-    printf("method = %s\n", method);
-    printf("fileName = %s\n", fileName);
-    printf("httpV = %s\n", httpV);
+    FILE *fp = fopen(fileName, "rb"); //fileNmae 에 해당하는 file을 open (성공시: file 구조체 포인터, 실패시 : NULL)
 
-    FILE *fp = fopen(fileName, "rb");
-
-    if(fp == NULL){
+    if(fp == NULL){ //file이 없을경우
       fclose(fp);
       statusCode = "404";
-      reason = "Not Found";
-      sprintf(response, "%s %s %s\r\n" , httpV, statusCode, reason);
-      printf("response : %s\n", response);
-      n = write(newsockfd, response, strlen(response));
+      reason = "Not Found";  
+      sprintf(response, "%s %s %s\r\n\r\n" , httpV, statusCode, reason); //response에 HTTP-Version SP Status-Code SP Reason-Phrase CRLF로 이루어진 status-line를 담는다.
+      n = write(newsockfd, response, strlen(response)); //client에 response를 보낸다.
       if (n < 0) error("ERROR writing to socket");
-      continue;
+      close(newsockfd);
+      continue; //
     }
     else{
       printf("/n/n111111");      
@@ -119,6 +115,7 @@ int main(int argc, char *argv[])
         printf("response : %s\n", response);
         n = write(newsockfd, response, strlen(response));
         if (n < 0) error("ERROR writing to socket");
+        close(newsockfd);
         continue;
       }
       statusCode = "200";
@@ -147,11 +144,10 @@ int main(int argc, char *argv[])
       n = write(newsockfd, file, fileSize);
       if (n < 0) error("ERROR writing to socket");
       free(file); // malloc으로 할당된 기억장치를 해제시킴.
+      close(newsockfd);
     }
   }
-
   close(sockfd);
-  close(newsockfd);
   
   return 0; 
 }
