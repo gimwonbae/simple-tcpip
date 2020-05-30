@@ -23,14 +23,17 @@ int main(int argc, char *argv[])
   socklen_t clilen;
   
   char buffer[1024];
+  char response[1024];
+
+  FILE *fp;
   
   /*sockaddr_in: Structure Containing an Internet Address*/
   struct sockaddr_in serv_addr, cli_addr;
   
   int n;
   if (argc < 2) {
-      fprintf(stderr,"ERROR, no port provided\n");
-      exit(1);
+    fprintf(stderr,"ERROR, no port provided\n");
+    exit(1);
   }
   
   /*Create a new socket
@@ -47,7 +50,7 @@ int main(int argc, char *argv[])
   serv_addr.sin_port = htons(portno); //convert from host to network byte order
   
   if (bind(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) //Bind the socket to the server address
-          error("ERROR on binding");
+    error("ERROR on binding");
   
   listen(sockfd,5); // Listen for socket connections. Backlog queue (connections to wait) is 5
   
@@ -56,18 +59,46 @@ int main(int argc, char *argv[])
     1) Block until a new connection is established
     2) the new socket descriptor will be used for subsequent communication with the newly connected client.
   */
-  newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
-  if (newsockfd < 0) 
-    error("ERROR on accept");
-  
-  bzero(buffer,1024);
-  n = read(newsockfd,buffer,1023); //Read is a block function. It will read at most 255 bytes
-  if (n < 0) error("ERROR reading from socket");
-    printf("Here is the message: %s\n",buffer);
-  
-  n = write(newsockfd,"I got your message",18); //NOTE: write function returns the number of bytes actually sent out �> this might be less than the number you told it to send
-  if (n < 0) error("ERROR writing to socket");
-  
+  while(1){
+    bzero(response, 1024);
+    
+    newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
+    if (newsockfd < 0) 
+      error("ERROR on accept");
+    
+    bzero(buffer,1024);
+    n = read(newsockfd,buffer,1023); //Read is a block function. It will read at most 255 bytes
+    if (n < 0) error("ERROR reading from socket");
+      printf("Request Message:\n%s\n",buffer);
+    
+    char *method = strtok(buffer,"\r\n");
+    strtok(method, " ");
+    char *fileName = strtok(NULL," /");
+    char *httpV = strtok(NULL," ");
+    char *statusCode;
+    char *reason;
+
+    printf("method = %s\n", method);
+    printf("fileName = %s\n", fileName);
+    printf("httpV = %s\n", httpV);
+
+    if((fp = fopen(fileName, "rb")) == NULL){
+      statusCode = "404";
+      reason = "Not Found";
+      sprintf(response, "%s %s %s\r\n" , httpV, statusCode, reason);
+      printf("response : %s\n", response);
+      n = write(newsockfd, response, strlen(response));
+      if (n < 0) error("ERROR writing to socket");
+      continue;
+    }
+    // else{
+
+    // }
+
+    n = write(newsockfd,"I got your message",18); //NOTE: write function returns the number of bytes actually sent out �> this might be less than the number you told it to send
+    if (n < 0) error("ERROR writing to socket");
+  }
+
   close(sockfd);
   close(newsockfd);
   
