@@ -87,11 +87,10 @@ int main(int argc, char *argv[])
       sprintf(response, "%s %s %s\r\n\r\n" , httpV, statusCode, reason); //response에 HTTP-Version SP Status-Code SP Reason-Phrase CRLF로 이루어진 status-line를 담는다.
       n = write(newsockfd, response, strlen(response)); //client에 response를 보낸다.
       if (n < 0) error("ERROR writing to socket");
-      close(newsockfd);
+      close(newsockfd); //
       continue; //
     }
     else{
-      printf("/n/n111111");      
       if(strstr(fileName,"html") != NULL){
         type = "text/html";
       }
@@ -112,7 +111,6 @@ int main(int argc, char *argv[])
         statusCode = "406";
         reason = "Not Acceptable";
         sprintf(response, "%s %s %s\r\n" , httpV, statusCode, reason);
-        printf("response : %s\n", response);
         n = write(newsockfd, response, strlen(response));
         if (n < 0) error("ERROR writing to socket");
         close(newsockfd);
@@ -137,8 +135,6 @@ int main(int argc, char *argv[])
       sprintf(response, "%s %s %s\r\nContent-Length: %d\r\nContent-Type: %s\r\n\r\n" , httpV, statusCode, reason,
       fileSize, type);
       
-      printf("response : %s", response);
-      printf("file : %s", file);
       n = write(newsockfd, response, strlen(response));
       if (n < 0) error("ERROR writing to socket");
       n = write(newsockfd, file, fileSize);
