@@ -23,7 +23,7 @@ int main(int argc, char *argv[])
   socklen_t clilen;
   
   char buffer[1024];
-  char response[1024];
+  char response[1024]; //response 메세지
 
   /*sockaddr_in: Structure Containing an Internet Address*/
   struct sockaddr_in serv_addr, cli_addr;
@@ -58,16 +58,17 @@ int main(int argc, char *argv[])
     2) the new socket descriptor will be used for subsequent communication with the newly connected client.
   */
   while(1){
-    bzero(response, 1024);
+    bzero(response, 1024); //response message를 초기화
     
     newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
     if (newsockfd < 0) 
       error("ERROR on accept");
     
-    bzero(buffer,1024);
+    bzero(buffer,1024); // request message 초기화
+
     n = read(newsockfd,buffer,1023); //Read is a block function. It will read at most 1023 bytes
     if (n < 0) error("ERROR reading from socket");
-      printf("Request Message:\n%s\n",buffer);
+      printf("Request Message:\n%s\n",buffer); //읽어온 request message를 서버에 출력
     
     char *method = strtok(buffer,"\r\n"); 
     strtok(method, " ");  //request message에서 method token을 parsing
@@ -84,13 +85,13 @@ int main(int argc, char *argv[])
       fclose(fp);
       statusCode = "404";
       reason = "Not Found";  
-      sprintf(response, "%s %s %s\r\n\r\n" , httpV, statusCode, reason); //response에 HTTP-Version SP Status-Code SP Reason-Phrase CRLF로 이루어진 status-line를 담는다.
+      sprintf(response, "%s %s %s\r\n\r\n" , httpV, statusCode, reason); //response에 HTTP-Version SP Status-Code SP Reason-Phrase CRLF로 이루어진 status-line를 담는다. 
       n = write(newsockfd, response, strlen(response)); //client에 response를 보낸다.
       if (n < 0) error("ERROR writing to socket");
-      close(newsockfd); //
-      continue; //
+      close(newsockfd); //client와 연결된 sockfd를 닫고
+      continue; // 루프문의 처음으로 돌아간다.
     }
-    else{
+    else{ //file이 있을 경우, fileName에 따른 response message의 content-type을 결정해준다.
       if(strstr(fileName,"html") != NULL){
         type = "text/html";
       }
@@ -106,7 +107,7 @@ int main(int argc, char *argv[])
       else if(strstr(fileName,"pdf") != NULL){
         type = "application/pdf";
       }
-      else {
+      else { //html, gif, jpeg, mp3, pdf외의 file일 경우, not accptable의 status-line을 response로 보낸다.
         fclose(fp);
         statusCode = "406";
         reason = "Not Acceptable";
@@ -114,32 +115,30 @@ int main(int argc, char *argv[])
         n = write(newsockfd, response, strlen(response));
         if (n < 0) error("ERROR writing to socket");
         close(newsockfd);
-        continue;
+        continue; //루프의 처음으로 돌아가준다.
       }
+      //file이 있고, html,gif,jpeg,mp3,pdf에 해당할 경우
       statusCode = "200";
-      reason = "OK";
+      reason = "OK"; //202 OK
 
-      fseek(fp, 0, SEEK_END);   
-      fileSize = ftell(fp);  
-      fseek(fp, 0, SEEK_SET);
+      fseek(fp, 0, SEEK_END); //file 포인터를 파일의 끝으로 옮겨  
+      fileSize = ftell(fp);  //size를 알아내고,
+      fseek(fp, 0, SEEK_SET); //다시 포인터를 처음으로 돌려준다.
       
-      char *file = (char *)malloc(sizeof(char) * fileSize); // content에 메모리 할당
+      char *file = (char *)malloc(sizeof(char) * fileSize); 
       bzero(file, fileSize);
-    /*
-    fread()함수는 입력 file에서 sizeof(char) 길이의 file_size항목까지 읽고,
-    지정된 content(buffer)에 저장합니다.
-    */
-      fread(file, sizeof(char), fileSize, fp);
+    
+      fread(file, sizeof(char), fileSize, fp); //데이터를 읽어 file 변수에 저장한다.
       fclose(fp);
 
       sprintf(response, "%s %s %s\r\nContent-Length: %d\r\nContent-Type: %s\r\n\r\n" , httpV, statusCode, reason,
-      fileSize, type);
+      fileSize, type); //status-line, contetnt-length header,content-type header로 이루어진 response 메세지를 만든다.
       
-      n = write(newsockfd, response, strlen(response));
+      n = write(newsockfd, response, strlen(response)); //response를 클라이언트에 보낸다.
       if (n < 0) error("ERROR writing to socket");
-      n = write(newsockfd, file, fileSize);
+      n = write(newsockfd, file, fileSize); //file 버퍼를 클라이언트에 보낸다.
       if (n < 0) error("ERROR writing to socket");
-      free(file); // malloc으로 할당된 기억장치를 해제시킴.
+      free(file); 
       close(newsockfd);
     }
   }
