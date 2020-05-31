@@ -9,6 +9,7 @@
 #include <netinet/in.h>  // constants and structures needed for internet domain addresses, e.g. sockaddr_in
 #include <stdlib.h>
 #include <strings.h>
+#include <string.h>
 
 void error(char *msg)
 {
@@ -57,7 +58,7 @@ int main(int argc, char *argv[])
     1) Block until a new connection is established
     2) the new socket descriptor will be used for subsequent communication with the newly connected client.
   */
-  while(1){
+  while(1){ //무한 loop를 돌며, accept 한다.
     bzero(response, 1024); //response message를 초기화
     
     newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
@@ -67,13 +68,13 @@ int main(int argc, char *argv[])
     bzero(buffer,1024); // request message 초기화
 
     n = read(newsockfd,buffer,1023); //Read is a block function. It will read at most 1023 bytes
-    if (n < 0) error("ERROR reading from socket");
+    if (n < 0) error("ERROR reading from socket"); //n < 0이면 read error
       printf("Request Message:\n%s\n",buffer); //읽어온 request message를 서버에 출력
     
-    char *method = strtok(buffer,"\r\n"); 
-    strtok(method, " ");  //request message에서 method token을 parsing
-    char *fileName = strtok(NULL," /"); //request message에서 file name을 parsing
-    char *httpV = strtok(NULL," "); //request message에서 http version을 parsing
+    char *method = strtok(buffer,"\r\n"); //request message의 첫줄 (request-line)을 parsing
+    strtok(method, " ");  //method token을 parsing
+    char *fileName = strtok(NULL," /"); //file name을 parsing
+    char *httpV = strtok(NULL," "); //http version을 parsing
     char *statusCode; 
     char *reason;
     int fileSize;
@@ -82,10 +83,9 @@ int main(int argc, char *argv[])
     FILE *fp = fopen(fileName, "rb"); //fileNmae 에 해당하는 file을 open (성공시: file 구조체 포인터, 실패시 : NULL)
 
     if(fp == NULL){ //file이 없을경우
-      fclose(fp);
       statusCode = "404";
-      reason = "Not Found";  
-      sprintf(response, "%s %s %s\r\n\r\n" , httpV, statusCode, reason); //response에 HTTP-Version SP Status-Code SP Reason-Phrase CRLF로 이루어진 status-line를 담는다. 
+      reason = "Not Found";
+      sprintf(response, "%s %s %s\r\n\r\n" , httpV, statusCode, reason); //response에 HTTP-Version SP Status-Code SP Reason-Phrase CRLF로 이루어진 status-line를 담는다.
       n = write(newsockfd, response, strlen(response)); //client에 response를 보낸다.
       if (n < 0) error("ERROR writing to socket");
       close(newsockfd); //client와 연결된 sockfd를 닫고
